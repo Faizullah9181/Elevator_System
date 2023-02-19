@@ -11,7 +11,7 @@ class Building(models.Model):
 class Elevator(models.Model):
     building = models.ForeignKey(Building, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
-    ctreated_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     is_active = models.BooleanField(default=True)
 
 

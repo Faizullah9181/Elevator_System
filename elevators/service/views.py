@@ -1,8 +1,8 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view ,  permission_classes
 from rest_framework.permissions import IsAuthenticated ,IsAdminUser
-from .models import Building, Elevator
-from .serializers import BuildingSerializer, ElevatorSerializer
+from .models import Building, Elevator,ElevatorOperations
+from .serializers import BuildingSerializer, ElevatorSerializer , ElevatorOperationsSerializer
 from rest_framework.response import Response
 from user.models import ElevatorManager
 from user.serializers import UserSerializer
@@ -25,12 +25,12 @@ def create_building(request):
 @api_view(['POST'])
 @permission_classes([IsAdminUser])
 def create_elevator(request):
-    data = request.data
+    user = request.user
     building_id = request.data['building_id']
     building = Building.objects.get(id=building_id)
     elevator = Elevator.objects.create(
         building=building,
-        created_by=request.user,
+        created_by=user,
         created_at=datetime.now()
     )
 
@@ -40,61 +40,79 @@ def create_elevator(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def get_elevator(request, pk):
-    elevator = Elevator.objects.get(id=pk)
+def get_elevator(request):
+    elevator_id = request.data['elevator_id']
+    elevator = Elevator.objects.get(id=elevator_id)
     serializer = ElevatorSerializer(elevator, many=False)
     return Response(serializer.data)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def request_elevator(request, pk):
-    elevator = Elevator.objects.get(id=pk)
-    elevator.requests.add(request.user)
-    serializer = ElevatorSerializer(elevator, many=False)
-    return Response(serializer.data)
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def press_button(request, pk):
-    elevator = Elevator.objects.get(id=pk)
-    elevator.button_pressed = request.data['button_pressed']
-    elevator.save()
-    elevator.requests.add(request.user)
-    elevator.save()
-    serializer = ElevatorSerializer(elevator, many=False)
-    return Response(serializer.data)
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def get_status(request, pk):
-    elevator = Elevator.objects.get(id=pk)
-    if elevator.button_pressed == 'TOP':
-        elevator.current_status = 'REACHED'
-        elevator.save()
-    elif elevator.button_pressed == 'BOTTOM':
-        elevator.current_status = 'REACHED'
-        elevator.save()
-    elif elevator.button_pressed == 'FLOOR':
-        elevator.current_status = 'REACHED'
-        elevator.save()
+def request_elevator(request):
+    elevator_id = request.data['elevator_id']
+    elevator = Elevator.objects.get(id=elevator_id)
+    elevators_operations = ElevatorOperations.objects.filter(elevator=elevator)
+    if elevators_operations:
+        elevator_operations = elevators_operations[0]
+        elevator_operations.requests.add(request.user)
+        elevator_operations.save()
+        serializer = ElevatorOperationsSerializer(elevator_operations, many=False)
+        return Response(serializer.data)
     else:
-        elevator.current_status = 'NO REQUEST'
-        elevator.save()
+        elevator_operations = ElevatorOperations.objects.create(
+            elevator=elevator,
+            current_floor=1,
+            current_status='IDLE',
+            button_pressed='BOTTOM'
+        )
+        elevator_operations.requests.add(request.user)
+        elevator_operations.save()
+        serializer = ElevatorOperationsSerializer(elevator_operations, many=False)
+        return Response(serializer.data)
+    
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def press_button(request):
+    elevator_id = request.data['elevator_id']
+    elevator = Elevator.objects.get(id=elevator_id)
+    elevators_operations = ElevatorOperations.objects.filter(elevator=elevator)
+    if elevators_operations:
+        elevator_operations = elevators_operations[0]
+        if elevator_operations.current_status == 'IDLE':
+            elevator_operations.button_pressed = request.data['button_pressed']
+            elevator_operations.save()
+            serializer = ElevatorOperationsSerializer(elevator_operations, many=False)
+            return Response(serializer.data)
+        else:
+            return Response('Elevator is busy')
+    else:
+        return Response('Elevator is busy')
+    
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def get_status(request):
+    elevator_id = request.data['elevator_id']
+    elevator = Elevator.objects.get(id=elevator_id)
+    elevator_operations = ElevatorOperations.objects.get(elevator=elevator)
+    serializer = ElevatorOperationsSerializer(elevator_operations, many=False)
+    return Response(serializer.data)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_requests(request):
     elevator_id = request.data['elevator_id']
     elevator = Elevator.objects.get(id=elevator_id)
-    requests = elevator.requests.all()
-    serializer = UserSerializer(requests, many=True)
+    elevator_operations = ElevatorOperations.objects.get(elevator=elevator)
+    serializer = UserSerializer(elevator_operations.requests, many=True)
     return Response(serializer.data)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_elevator_manager(request):
-    elevator_managers = ElevatorManager.objects.all()
-    serializer = UserSerializer(elevator_managers, many=True)
+    elevator_id = request.data['elevator_id']
+    elevator = Elevator.objects.get(id=elevator_id)
+    created_by = elevator.created_by
+    serializer = UserSerializer(created_by, many=False)
     return Response(serializer.data)

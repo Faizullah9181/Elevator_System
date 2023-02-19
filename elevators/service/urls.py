@@ -8,6 +8,7 @@ urlpatterns = [
     path('press/', views.press_button, name='press-button'),
     path('getelevator/', views.get_elevator, name='get-elevator'),
     path('getrequests/', views.get_requests, name='get-requests'),
-    path('getmanager/', views.get_elevator_manager, name='get-manager')
+    path('getmanager/', views.get_elevator_manager, name='get-manager'),
+    path('status/', views.get_status, name='get-status')
 
 ]

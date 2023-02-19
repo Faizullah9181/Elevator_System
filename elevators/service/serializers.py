@@ -1,4 +1,4 @@
-from .models import Building, Elevator
+from .models import Building, Elevator , ElevatorOperations
 from rest_framework import serializers
 
 
@@ -12,4 +12,10 @@ class BuildingSerializer(serializers.ModelSerializer):
 class ElevatorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Elevator
-        fields = ['id', 'building', 'current_floor', 'is_moving', 'is_door_open', 'is_active', 'is_reached_top', 'is_reached_bottom', 'requests']
+        fields = ['id', 'building', 'created_at', 'created_by', 'is_active']
+
+
+class ElevatorOperationsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ElevatorOperations
+        fields = ['id', 'elevator', 'current_floor', 'current_status', 'button_pressed', 'requests']
